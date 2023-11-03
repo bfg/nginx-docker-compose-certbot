@@ -1,0 +1,22 @@
+# .gitignore
+
+# temp & swap files
+*~
+.*~
+
+*.bak
+.*.bak
+
+*.swp
+.*.swp
+
+# generic stuff
+tmp/
+
+# Intellij IDEA
+.idea/
+
+.internal/
+
+# vim:shiftwidth=2 softtabstop=2 expandtab
+# EOF

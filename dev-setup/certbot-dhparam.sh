@@ -1,0 +1,1 @@
+../scripts/certbot-dhparam.sh

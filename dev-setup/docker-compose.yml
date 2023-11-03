@@ -1,0 +1,94 @@
+#
+# docker compose
+#
+
+version: "3.8"
+
+services:
+  ####################################################################################
+  # frontend main web frontend
+  frontend:
+    image:          "nginx:1.25.3"
+    ulimits:
+      nproc:        1024
+      nofile:       950000
+      memlock:      100000000
+    ports:
+      - "80:80"
+      - "443:443"       # TLS HTTP/2
+      - "443:443/udp"   # QUIC TLS HTTP/3
+
+    volumes:
+      # frontend custom configs
+      - "./data/frontend/nginx:/etc/nginx:ro"
+
+      # static website content
+      - "./data/frontend/webroot:/www"
+
+      # letsencrypt certbot read-only mounts
+      - "./data/certbot/conf:/etc/letsencrypt:ro"
+      - "./data/certbot/www:/var/www/certbot:ro"
+
+    depends_on:
+      - certbot
+      - db-mongo
+      - mongo-gui
+      - mongo-express
+
+  ####################################################################################
+  # https://letsencrypt.org/ certbot
+  certbot:
+    image:          "certbot/certbot:v2.7.3"
+    volumes:
+      - "./data/certbot/conf:/etc/letsencrypt"
+      - "./data/certbot/www:/var/www/certbot"
+
+  ####################################################################################
+  # mongodb database
+  db-mongo:
+    # mongodb 3.6.x is not available for arm64, that's why platform needs to be forced
+    platform:       "linux/amd64"
+    image:          "mongo:3.6.3"
+    ports:
+      - "27017:27017"
+
+  mongo-gui:
+    image:          "ugleiton/mongo-gui"
+    restart: always
+    environment:
+      - MONGO_URL=mongodb://db-mongo:27017
+    depends_on:
+      - db-mongo
+
+  mongo-express:
+    image:          "mongo-express:1.0.0-20"
+    restart: always
+    environment:
+      - ME_CONFIG_MONGODB_URL=mongodb://db-mongo:27017/db?ssl=false
+      - ME_CONFIG_SITE_BASEURL=/express
+      - ME_CONFIG_BASICAUTH=false
+      - ME_CONFIG_BASICAUTH_USERNAME=root
+      - ME_CONFIG_BASICAUTH_PASSWORD=trolololo
+      #- ME_CONFIG_OPTIONS_READONLY=true
+      - ME_CONFIG_OPTIONS_NO_DELETE=true
+      # - ME_CONFIG_OPTIONS_EDITORTHEME="ambiance"
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+      - MONGO_URL=mongodb://db-mongo:27017
+    depends_on:
+      - db-mongo
+
+  api-backend-php:
+    image:          "registry.gitlab.com/some-group/some-repo:v1.0.1"
+    environment:
+      - SSL_MODE=off
+    depends_on:
+      - db-mongo
+
+# host-only networking is tricky, see https://docs.docker.com/compose/compose-file/06-networks/#attributes
+#networks:
+#  host:
+#    name:     host
+#    external: true
+
+# vim:shiftwidth=2 softtabstop=2 expandtab
+# EOF
